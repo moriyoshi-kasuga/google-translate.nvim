@@ -1,6 +1,7 @@
 ---@diagnostic disable: duplicate-set-field
 
 local gt = require("google-translate")
+local cache = require("google-translate.cache")
 local client = require("google-translate.client")
 local config = require("google-translate.config")
 local text = require("google-translate.text")
@@ -36,6 +37,7 @@ describe("translate", function()
     client.request = original_request
     text.CHUNK_LIMIT = 4500
     config.setup()
+    cache.clear()
   end)
 
   it("restores the whitespace the API strips", function()
@@ -99,6 +101,35 @@ describe("translate", function()
     assert.are.equal("boom", err)
     assert.is_nil(result)
     assert.are.equal(1, #calls)
+  end)
+
+  it("reuses the translation of text it has already translated", function()
+    run("hello", { target = "ja" })
+    local err, result = run("hello", { target = "ja" })
+    assert.is_nil(err)
+    assert.are.same({ text = "HELLO", source = "en" }, result)
+    assert.are.equal(1, #calls)
+  end)
+
+  it("does not reuse a translation into another language", function()
+    run("hello", { target = "ja" })
+    run("hello", { target = "de" })
+    assert.are.equal(2, #calls)
+  end)
+
+  it("does not keep failures", function()
+    client.request = function(body, source, target, callback)
+      client.request = fake_request
+      table.insert(calls, { body = body, source = source, target = target })
+      vim.schedule(function()
+        callback("boom")
+      end)
+    end
+    assert.are.equal("boom", run("hello", { target = "ja" }))
+    local err, result = run("hello", { target = "ja" })
+    assert.is_nil(err)
+    assert.are.same({ text = "HELLO", source = "en" }, result)
+    assert.are.equal(2, #calls)
   end)
 
   it("rejects unknown languages without sending a request", function()

@@ -1,3 +1,4 @@
+local cache = require("google-translate.cache")
 local client = require("google-translate.client")
 local config = require("google-translate.config")
 local languages = require("google-translate.languages")
@@ -15,7 +16,8 @@ function M.setup(opts)
 end
 
 ---Translates `s`, splitting long text into sequential requests and keeping the
----whitespace that the API strips. `callback` always runs later on the main loop.
+---whitespace that the API strips. Chunks found in the cache send no request.
+---`callback` always runs later on the main loop.
 ---@param s string
 ---@param opts? google_translate.TranslateOpts
 ---@param callback fun(err: string?, result: google_translate.Result?)
@@ -51,14 +53,26 @@ function M.translate(s, opts, callback)
       translate_chunk(i + 1)
       return
     end
+
+    ---@param result google_translate.Result
+    local function apply(result)
+      results[i] = leading .. result.text .. trailing
+      detected = detected or result.source
+      translate_chunk(i + 1)
+    end
+
+    local cached = cache.get(source, target, body)
+    if cached then
+      apply(cached)
+      return
+    end
     client.request(body, source, target, function(err, result)
       if not result then
         callback(err)
         return
       end
-      results[i] = leading .. result.text .. trailing
-      detected = detected or result.source
-      translate_chunk(i + 1)
+      cache.set(source, target, body, result)
+      apply(result)
     end)
   end
   translate_chunk(1)

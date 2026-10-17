@@ -1,6 +1,6 @@
 # google-translate.nvim
 
-Translate text in Neovim with the free Google Translate web endpoint. No API key is needed.
+Translate text in Neovim with the free Google Translate web endpoints. No API key is needed.
 Replace the text with its translation, or read the translation in a floating window.
 
 ## Requirements
@@ -95,6 +95,7 @@ end)
 
 The callback runs on the main loop.
 Leading and trailing whitespace is kept, and text longer than about 4500 characters is sent in several requests.
+The results of the last 100 requests are kept in memory, so translating the same text into the same language again sends no request.
 
 ## Health
 
@@ -102,10 +103,15 @@ Leading and trailing whitespace is kept, and text longer than about 4500 charact
 :checkhealth google-translate
 ```
 
+This sends a short request to each endpoint and shows which ones translate.
+
 ## Limitations
 
-- The endpoint is unofficial and undocumented. Google may change or block it at any time.
-- Google rate limits heavy use. The plugin reports HTTP 429 and 503 as "rate limited". The limit usually lifts after some hours.
+- The endpoints are unofficial and undocumented. Google may change or block them at any time.
+- Google rate limits heavy use, separately for each endpoint.
+  When an endpoint is rate limited or answers with an error, the plugin tries the next one and keeps using the one that answers.
+  When every endpoint fails, the error of the first one is shown, and HTTP 429 and 503 are reported as "rate limited".
+  The limit usually lifts after some hours.
 - Each line break ends a sentence. Text wrapped over several lines, such as a comment block, is translated line by line.
 - The detected source language is sometimes wrong.
 
