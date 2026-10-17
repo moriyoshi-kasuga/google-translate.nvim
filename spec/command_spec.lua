@@ -91,12 +91,47 @@ describe("command.region", function()
     )
   end)
 
+  it("follows 'selection' when it is exclusive", function()
+    local selection = vim.o.selection
+    finally(function()
+      vim.o.selection = selection
+    end)
+    vim.o.selection = "exclusive"
+    local buf = set_buffer({ "hello world" })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    vim.cmd("normal! vl\27")
+    assert.are.same(
+      { bufnr = buf, start_row = 0, start_col = 0, end_row = 0, end_col = 1 },
+      command.region({ range = 2, line1 = 1, line2 = 1 })
+    )
+  end)
+
+  it("includes composing characters of the last character", function()
+    -- "e" followed by U+0301 COMBINING ACUTE ACCENT
+    local buf = set_buffer({ "cafe\204\129 au lait" })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    vim.cmd("normal! v3l\27")
+    assert.are.same(
+      { bufnr = buf, start_row = 0, start_col = 0, end_row = 0, end_col = 6 },
+      command.region({ range = 2, line1 = 1, line2 = 1 })
+    )
+  end)
+
   it("stops at the end of the line for a selection extended with $", function()
     local buf = set_buffer({ "abc" })
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
     vim.cmd("normal! v$\27")
     assert.are.same(
       { bufnr = buf, start_row = 0, start_col = 0, end_row = 0, end_col = 3 },
+      command.region({ range = 2, line1 = 1, line2 = 1 })
+    )
+  end)
+
+  it("handles a selection on an empty line", function()
+    local buf = set_buffer({ "" })
+    vim.cmd("normal! v\27")
+    assert.are.same(
+      { bufnr = buf, start_row = 0, start_col = 0, end_row = 0, end_col = 0 },
       command.region({ range = 2, line1 = 1, line2 = 1 })
     )
   end)

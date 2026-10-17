@@ -83,19 +83,18 @@ function M.region(cmd)
     return nil, "google-translate: blockwise selection is not supported"
   end
   if mode == "v" then
-    local start = vim.fn.getpos("'<")
-    local finish = vim.fn.getpos("'>")
-    local end_row = finish[2] - 1
-    local line = vim.api.nvim_buf_get_lines(bufnr, end_row, end_row + 1, true)[1]
-    -- `'>` is the first byte of the last character, or beyond the line after `$`.
-    local col = finish[3]
-    local end_col = col > #line and #line or col + vim.str_utf_end(line, col)
+    -- getregionpos() follows 'selection', includes composing characters and
+    -- stops at the end of the line after `$`.
+    local positions = vim.fn.getregionpos(vim.fn.getpos("'<"), vim.fn.getpos("'>"), { type = "v" })
+    local first, last = positions[1][1], positions[#positions][2]
     return {
       bufnr = bufnr,
-      start_row = start[2] - 1,
-      start_col = start[3] - 1,
-      end_row = end_row,
-      end_col = end_col,
+      start_row = first[2] - 1,
+      -- Column 0 marks an empty line.
+      start_col = math.max(first[3] - 1, 0),
+      end_row = last[2] - 1,
+      -- The last byte, 1-based and inclusive, is the 0-based exclusive end.
+      end_col = last[3],
     }
   end
 
