@@ -1,0 +1,146 @@
+*google-translate.txt*  Translate text with Google Translate
+
+Author:  moriyoshi-kasuga
+License: MIT
+
+==============================================================================
+CONTENTS                                           *google-translate-contents*
+
+    1. Introduction                         |google-translate-introduction|
+    2. Requirements                         |google-translate-requirements|
+    3. Commands                             |google-translate-commands|
+    4. Configuration                        |google-translate-configuration|
+    5. Lua API                              |google-translate-api|
+    6. Health                               |google-translate-health|
+    7. Limitations                          |google-translate-limitations|
+
+==============================================================================
+1. INTRODUCTION                                *google-translate-introduction*
+
+google-translate.nvim translates text with the free Google Translate web
+endpoint. No API key is needed. The translation either replaces the text in
+the buffer or is shown in a floating window.
+
+==============================================================================
+2. REQUIREMENTS                                *google-translate-requirements*
+
+- Neovim 0.11 or later
+- curl
+
+==============================================================================
+3. COMMANDS                                        *google-translate-commands*
+
+                                                                  *:Translate*
+:[range]Translate [{target}] [--source={source}] [--float]
+
+    Translate the lines in [range] (default: the current line) into
+    {target}. Without {target}, the `target` option is used (see
+    |google-translate-configuration|). {source} defaults to `auto`, which
+    lets Google detect the language. Arguments may appear in any order.
+    Language codes complete with <Tab>.
+
+    Without --float, the text is replaced with the translation. The request
+    runs in the background. If the buffer changes before the translation
+    arrives, nothing is replaced and a warning is shown. A single |undo|
+    restores the original text.
+
+    With --float, the translation is shown in a floating window in the
+    middle of the editor and the buffer is left unchanged. The window takes
+    the focus and closes with `q` or when you leave it. When the window has
+    a border, its title shows the languages, for example " en to ja ".
+
+    When [range] is the last Visual selection, as with `:'<,'>`, and that
+    selection was characterwise (|v|), only the selected characters are
+    translated. Linewise selections (|V|) translate whole lines. Blockwise
+    selections (|CTRL-V|) are not supported.
+
+    Examples: >vim
+        :Translate ja
+        :'<,'>Translate ja --float
+        :%Translate en --source=ja
+<
+    The plugin defines no mappings. For example: >lua
+        vim.keymap.set("x", "<leader>tr", ":Translate ja<CR>")
+        vim.keymap.set("x", "<leader>tf", ":Translate ja --float<CR>")
+<
+==============================================================================
+4. CONFIGURATION                              *google-translate-configuration*
+
+                                                    *google-translate.setup()*
+Calling `setup()` is optional. Each call applies the given options over the
+defaults, and options from earlier calls are discarded. Unknown keys and
+invalid values raise an error.
+
+Defaults: >lua
+    require("google-translate").setup({
+      target = "en",
+      float = {
+        height = 0.85,
+        width = 0.75,
+        border = nil,
+      },
+    })
+<
+target                                               *google-translate-target*
+    Language used when |:Translate| is run without {target}.
+
+float.height                                   *google-translate-float.height*
+float.width                                     *google-translate-float.width*
+    Maximum size of the floating window. A value of 1 or less is a ratio of
+    the editor size, and a larger value is a number of rows or columns. The
+    window shrinks to fit the translation.
+
+float.border                                   *google-translate-float.border*
+    Border of the floating window, as in |nvim_open_win()|. When nil,
+    'winborder' is used.
+
+==============================================================================
+5. LUA API                                              *google-translate-api*
+
+                                                *google-translate.translate()*
+translate({text}, {opts}, {callback})
+    Translate {text} without touching any buffer.
+
+    Leading and trailing whitespace of {text} is kept. Text longer than
+    about 4500 characters is split at line boundaries and sent in several
+    requests, one after another.
+
+    Parameters: ~
+      - {text}      (`string`)
+      - {opts}      (`table?`)
+        - {source}  (`string?`) Defaults to "auto".
+        - {target}  (`string?`) Defaults to the `target` option.
+      - {callback}  (`fun(err: string?, result: table?)`) Called on the main
+                    loop. On success, {result} has these fields:
+        - {text}    (`string`) The translation.
+        - {source}  (`string`) The detected source language.
+
+    Example: >lua
+        local gt = require("google-translate")
+        gt.translate("Hello", { target = "ja" }, function(err, result)
+          if err then
+            vim.notify(err, vim.log.levels.ERROR)
+            return
+          end
+          print(result.text)
+        end)
+<
+==============================================================================
+6. HEALTH                                            *google-translate-health*
+
+Run `:checkhealth google-translate` to check the Neovim version and whether
+curl is available.
+
+==============================================================================
+7. LIMITATIONS                                  *google-translate-limitations*
+
+- The endpoint is unofficial and undocumented. Google may change or block it
+  at any time.
+- Google rate limits heavy use. The plugin reports HTTP 429 and 503 as
+  "rate limited". The limit usually lifts after some hours.
+- Each line break ends a sentence. Text wrapped over several lines, such as
+  a comment block, is translated line by line.
+- The detected source language is sometimes wrong. It is only shown in the
+  title of the floating window.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:

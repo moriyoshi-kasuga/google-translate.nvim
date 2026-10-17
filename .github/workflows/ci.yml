@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      # nlua runs `nvim -l`, which waits on stdin while it stays open.
+      - run: nix develop -c busted < /dev/null
+      - run: nix develop -c stylua --check .
+      - run: nix develop -c lua-language-server --check . --checklevel=Warning
