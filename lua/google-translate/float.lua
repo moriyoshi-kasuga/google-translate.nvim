@@ -57,7 +57,8 @@ end
 function M.open(text, title)
   local cfg = config.options.float
   local lines = vim.split(text, "\n", { plain = true })
-  local geometry = M.geometry(lines, title, cfg, vim.o.columns, vim.o.lines - vim.o.cmdheight)
+  local rows = vim.o.lines - vim.o.cmdheight
+  local geometry = M.geometry(lines, title, cfg, vim.o.columns, rows)
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -79,6 +80,18 @@ function M.open(text, title)
     title_pos = has_border and "center" or nil,
   })
   vim.wo[win].wrap = true
+
+  -- `geometry` misses rows lost to wide characters at wrap boundaries and to
+  -- options such as 'linebreak', so fit the height to the displayed text.
+  local height = math.min(resolve(cfg.height, rows), vim.api.nvim_win_text_height(win, {}).all)
+  if height ~= geometry.height then
+    vim.api.nvim_win_set_config(win, {
+      relative = "editor",
+      row = math.floor((rows - height) / 2),
+      col = geometry.col,
+      height = height,
+    })
+  end
 
   vim.keymap.set("n", "q", "<Cmd>close<CR>", {
     buffer = buf,

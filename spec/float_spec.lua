@@ -80,6 +80,18 @@ describe("float.open", function()
     assert.are.equal(" en to ja ", vim.api.nvim_win_get_config(win).title[1][1])
   end)
 
+  it("fits rows lost to wide characters at wrap boundaries", function()
+    local columns = vim.o.columns
+    finally(function()
+      vim.o.columns = columns
+    end)
+    vim.o.columns = 101
+    config.setup({ float = { border = "single" } })
+    local win = float.open(string.rep("あ", 75), " en to ja ")
+    assert.are.equal(vim.api.nvim_win_text_height(win, {}).all, vim.api.nvim_win_get_height(win))
+    assert.are.equal(" en to ja ", vim.api.nvim_win_get_config(win).title[1][1])
+  end)
+
   it("follows 'winborder' and omits the title without a border", function()
     local win = float.open("x", " en to ja ")
     assert.is_nil(vim.api.nvim_win_get_config(win).title)
